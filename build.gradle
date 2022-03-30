@@ -1,0 +1,159 @@
+buildscript {
+    repositories {
+        mavenCentral()
+    }
+    dependencies {
+        classpath "org.jfrog.buildinfo:build-info-extractor-gradle:latest.release"
+    }
+}
+
+plugins {
+    id 'org.springframework.boot' version '2.6.4'
+    id 'io.spring.dependency-management' version '1.0.11.RELEASE'
+    id 'java'
+    id 'maven-publish'
+}
+apply plugin: "com.jfrog.artifactory"
+
+group = 'io.github.jokoframework'
+sourceCompatibility = '11'
+
+configurations {
+    compileOnly {
+        extendsFrom annotationProcessor
+    }
+}
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            from components.java
+        }
+    }
+}
+
+repositories {
+    mavenCentral()
+    mavenLocal()
+}
+
+
+artifactory {
+    contextUrl = "${artifactory_contextUrl}"
+    publish {
+        repository {
+            repoKey = 'libs-release-local'
+            username = "${artifactory_user}"
+            password = "${artifactory_password}"
+            maven = true
+
+        }
+        defaults {
+            publications ('mavenJava')
+        }
+    }
+}
+
+dependencies {
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.apache.velocity:velocity-engine-core:2.3'
+    implementation 'org.apache.velocity.tools:velocity-tools-generic:3.1'
+    implementation 'net.sourceforge.htmlunit:htmlunit:2.59.0'
+    implementation 'com.itextpdf:html2pdf:4.0.1'
+    implementation 'org.cups4j:cups4j:0.7.8'
+    implementation 'org.jsoup:jsoup:1.14.3'
+    compileOnly 'org.projectlombok:lombok'
+    annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
+    annotationProcessor 'org.projectlombok:lombok'
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+}
+
+bootJar {
+    enabled = false
+}
+
+jar {
+    enabled = true
+    archiveClassifier = ''
+}
+
+def versionNumberForJava11 = '1.0.0-beta1'
+def versionNumberForJava8 = '1.0.0-beta1-jdk8'
+/**
+ * JAVA 11
+ */
+tasks.register('compileWith11', JavaCompile) {
+    javaCompiler = javaToolchains.compilerFor {
+        println 'Compiling for java 11'
+        languageVersion = JavaLanguageVersion.of(11)
+    }
+}
+
+tasks.register('buildForJava11') {
+    dependsOn 'clean'
+    dependsOn 'compileWith11'
+    dependsOn 'build'
+    rootProject.version = versionNumberForJava11
+    rootProject.sourceCompatibility = 11
+    tasks.findByName('compileWith11').mustRunAfter 'clean'
+    tasks.findByName('build').mustRunAfter 'compileWith11'
+    println 'Building for java 11 finished'
+}
+
+tasks.register('generateJava11Artifact') {
+    dependsOn 'buildForJava11'
+    dependsOn 'generatePomFileForMavenJavaPublication'
+    tasks.findByName('generatePomFileForMavenJavaPublication').mustRunAfter 'buildForJava11'
+
+}
+
+tasks.register('publishJava11Local') {
+    dependsOn 'generateJava11Artifact'
+    dependsOn 'publishToMavenLocal'
+    tasks.findByName('publishToMavenLocal').mustRunAfter 'generateJava11Artifact'
+}
+
+tasks.register('publishJava11Artifactory') {
+    dependsOn 'generateJava11Artifact'
+    dependsOn 'artifactoryPublish'
+    tasks.findByName('artifactoryPublish').dependsOn 'generateJava11Artifact'
+}
+
+/**
+ * JAVA 8
+ */
+tasks.register('compileWith8', JavaCompile) {
+    javaCompiler = javaToolchains.compilerFor {
+        println 'Compiling for java 8'
+        languageVersion = JavaLanguageVersion.of(8)
+    }
+}
+
+tasks.register('buildForJava8') {
+    dependsOn 'clean'
+    dependsOn 'compileWith8'
+    dependsOn 'build'
+    rootProject.version = versionNumberForJava8
+    rootProject.sourceCompatibility = 8
+    tasks.findByName('compileWith8').mustRunAfter 'clean'
+    tasks.findByName('build').mustRunAfter 'compileWith8'
+}
+
+tasks.register('generateJava8Artifact') {
+    dependsOn 'buildForJava8'
+    dependsOn 'generatePomFileForMavenJavaPublication'
+    tasks.findByName('generatePomFileForMavenJavaPublication').mustRunAfter 'buildForJava8'
+
+}
+
+tasks.register('publishJava8Local') {
+    dependsOn 'generateJava8Artifact'
+    dependsOn 'publishToMavenLocal'
+    tasks.findByName('publishToMavenLocal').mustRunAfter 'generateJava8Artifact'
+}
+
+tasks.register('publishJava8Artifactory') {
+    dependsOn 'generateJava8Artifact'
+    dependsOn 'artifactoryPublish'
+    tasks.findByName('artifactoryPublish').dependsOn 'generateJava8Artifact'
+}
