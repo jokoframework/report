@@ -2,6 +2,7 @@ package io.github.jokoframework.report.utils;
 
 import lombok.Getter;
 import lombok.Setter;
+import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.velocity.tools.generic.DateTool;
 import org.apache.velocity.tools.generic.NumberTool;
@@ -15,25 +16,29 @@ import java.util.Locale;
 @Setter
 public class ReportTools {
 
-    private NumberTool numberTool;
-    private DateTool date;
-    private StringUtils stringUtils;
-    private TextStyle textStyle;
-    private Locale locale;
-    private NumberUtil numberUtil;
-    private DecimalFormat decimalFormat;
-    private NumbersToSpanishWords numbersToSpanishWords;
+    public final NumberTool numberTool;
+    public final DateTool date;
+    public final StringUtils stringUtils;
+    public final ObjectUtils objectUtils;
+    public final TextStyle textStyle;
+    public Locale locale;
+    public final NumberUtil number;
+    public final DecimalFormat decimalFormat;
+    public final NumbersToSpanishWords numbersToSpanishWords;
+    public final DateToWords dateToWords;
 
 
     public ReportTools() {
         this.numberTool = new NumberTool();
         this.date = new DateTool();
         this.stringUtils = new StringUtils();//NOSONAR
+        this.objectUtils = new ObjectUtils();//NOSONAR
         this.textStyle = TextStyle.FULL;
         this.locale = new Locale("es", "ES");
         this.decimalFormat = new DecimalFormat();
-        this.numberUtil = new NumberUtil(this.locale);
-        this.numbersToSpanishWords = new NumbersToSpanishWords();
+        this.number = new NumberUtil(this.locale);
+        this.numbersToSpanishWords = new NumbersToSpanishWords();//NOSONAR
+        this.dateToWords = new DateToWords();
     }
 
     public NumberTool numberTool() {
@@ -52,11 +57,11 @@ public class ReportTools {
         return stringUtils;
     }
 
-    public Class string() {
+    public Class<String> string() {
         return String.class;
     }
 
-    public Class zoneId() {
+    public Class<ZoneId> zoneId() {
         return ZoneId.class;
     }
 
@@ -69,10 +74,14 @@ public class ReportTools {
     }
 
     public NumberUtil number() {
-        return numberUtil;
+        return number;
     }
 
     public NumbersToSpanishWords numbersToWords() {
         return numbersToSpanishWords;
+    }
+
+    public DateToWords dateToWords() {
+        return dateToWords;
     }
 }

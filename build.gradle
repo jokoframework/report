@@ -77,8 +77,9 @@ jar {
     archiveClassifier = ''
 }
 
-def versionNumberForJava11 = '1.0.0-beta1'
-def versionNumberForJava8 = '1.0.0-beta1-jdk8'
+def versionNumber = '1.0.0-beta2'
+def versionNumberForJava11 = versionNumber
+def versionNumberForJava8 = versionNumber+'-jdk8'
 /**
  * JAVA 11
  */

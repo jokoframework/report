@@ -4,11 +4,13 @@ import com.gargoylesoftware.htmlunit.WebClient;
 import com.gargoylesoftware.htmlunit.WebRequest;
 import com.gargoylesoftware.htmlunit.html.HtmlPage;
 import com.itextpdf.html2pdf.HtmlConverter;
+import io.github.jokoframework.report.exception.JokoReportException;
 import io.github.jokoframework.report.exception.WebClientErrorListener;
-import io.github.jokoframework.report.printer.EscP2Tool;
+import io.github.jokoframework.report.printer.ESCPrinter;
 import io.github.jokoframework.report.utils.ReportTools;
 import lombok.Getter;
 import lombok.Setter;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.velocity.Template;
 import org.apache.velocity.VelocityContext;
 import org.apache.velocity.app.VelocityEngine;
@@ -33,15 +35,60 @@ public class JokoReporter {
     public static final String PARAMS = "Params";
     public static final String STRING = "String";
     public static final String ZONE_ID = "ZoneId";
-    public static final String ESC_P2 = "EscP2";
+    public static final String ESCP = "Escp";
     private VelocityContext context;
     private Template template;
     private ReportTools reportTools;
+    private ESCPrinter escPrinter;
+    private boolean esc24pin = false;
+    private static final String CONTEXT_NULL_ERROR = "context.null.error";
+
+
+    public JokoReporter() {
+        //empty constructor
+    }
+
+    public JokoReporter(boolean esc24pin) {
+        this.esc24pin = esc24pin;
+    }
+
+    public static JokoReporter buildInstance(String reportTemplatePath, boolean esc24pin, Object params) {
+        JokoReporter jokoReporter = new JokoReporter(esc24pin);
+        jokoReporter.buildContext(reportTemplatePath, params);
+        return jokoReporter;
+    }
 
     public static JokoReporter buildInstance(String reportTemplatePath, Object params) {
         JokoReporter jokoReporter = new JokoReporter();
         jokoReporter.buildContext(reportTemplatePath, params);
         return jokoReporter;
+    }
+
+    public static JokoReporter buildInstance(ESCPrinter escPrinter, boolean esc24pin) {
+        JokoReporter jokoReporter = new JokoReporter(esc24pin);
+        jokoReporter.setEscPrinter(escPrinter);
+        return jokoReporter;
+    }
+
+    public static JokoReporter buildInstance(boolean esc24pin) {
+        return new JokoReporter(esc24pin);
+    }
+
+    public void setEscPrinter(ESCPrinter escPrinter) {
+        if(escPrinter != null){
+            this.escPrinter = escPrinter;
+        }
+        if(this.escPrinter != null && this.getContext() != null){
+            this.getContext().put(ESCP, this.escPrinter);
+        }
+
+    }
+
+    public ESCPrinter getEscPrinter() {
+        if(this.escPrinter == null){
+            this.setEscPrinter(new ESCPrinter(esc24pin));
+        }
+        return this.escPrinter;
     }
 
     /**
@@ -69,7 +116,7 @@ public class JokoReporter {
         this.getContext().put(STRING, String.class);
         this.getContext().put(ZONE_ID, ZoneId.class);
         this.getContext().put(TOOLS, this.getReportTools());
-        this.getContext().put(ESC_P2, new EscP2Tool());
+        this.setEscPrinter(new ESCPrinter(esc24pin));
     }
 
     public void configDecimalFormatter(String format) {
@@ -103,8 +150,11 @@ public class JokoReporter {
      *
      * @return
      */
-    public String buildReportOutput() {
-        return this.buildReport().toString();
+    public String buildReportOutput(boolean filerEscapeCommands) {
+        String reportOutput = this.getContext() != null ? this.buildReport().toString() : this.escPrinter.generate();
+        return filerEscapeCommands ?
+                StringUtils.substringBetween(reportOutput, ESCPrinter.START_REPORT_CHAR, ESCPrinter.END_REPORT_CHAR) :
+                reportOutput;
     }
 
     public String buildReportOutput(int copyNumber) {

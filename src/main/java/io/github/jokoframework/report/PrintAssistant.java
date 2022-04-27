@@ -1,7 +1,6 @@
 package io.github.jokoframework.report;
 
-import io.github.jokoframework.report.exception.JokoPrintException;
-import io.github.jokoframework.report.printer.EscPUtil;
+import io.github.jokoframework.report.exception.JokoReportException;
 import org.cups4j.CupsClient;
 import org.cups4j.CupsPrinter;
 import org.cups4j.PrintJob;
@@ -66,7 +65,7 @@ public class PrintAssistant {
             CupsPrinter cupsPrintService = null;
             List<CupsPrinter> printers = findAllPrinterServices(serverHost, serverPort);
             if (printers == null || printers.isEmpty()) {
-                throw new JokoPrintException("Cant list Printers");
+                throw new JokoReportException("Cant list Printers");
             }
             for (CupsPrinter cupsPrinter : printers) {
                 LOGGER.debug("Service: {}", cupsPrinter.getName());
@@ -100,7 +99,10 @@ public class PrintAssistant {
         }
     }
 
-    // List details about the named printer
+    /**
+     * Print details about the available printer services
+     * @param service
+     */
     public static void queryPrinter(PrintService service) {
         Attribute[] attrs = service.getAttributes().toArray();
         for (int i = 0; i < attrs.length; i++) {
@@ -108,27 +110,13 @@ public class PrintAssistant {
         }
     }
 
-    public static EscPUtil getDefaultEscPCommands() {
-        EscPUtil escPUtil = EscPUtil.getInstance();
-        // Add the ESC/P commands for font type and quality
-        escPUtil.escSelectTypeface(EscPUtil.TYPEFACE.SANS_SERIF).escPrintQualitySelect(EscPUtil.PRINT_QUALITY.LQ);
-        return escPUtil;
-    }
-
-    public static PrintRequestResult printOnMatrixPrinter(CupsPrinter cupsPrinterService, String reportOutput, EscPUtil escPUtil) throws JokoPrintException {
+    public static PrintRequestResult printOnMatrixPrinter(CupsPrinter cupsPrinterService, String reportOutput) throws JokoReportException {
         try {
-            if (escPUtil == null) {
-                escPUtil = getDefaultEscPCommands();
-            }
             List<String> listMimeTypes = new ArrayList<>();
             listMimeTypes.add("application/octet-stream");
             cupsPrinterService.setMimeTypesSupported(listMimeTypes);
-
-            // Add the text to print
-            escPUtil.addText(reportOutput);
-
             ByteArrayInputStream inputStream = new
-                    ByteArrayInputStream(escPUtil.getResult().getBytes());
+                    ByteArrayInputStream(reportOutput.getBytes());
 
             Map<String, String> attributes = new HashMap<>();
             attributes.put("compression", "none");
@@ -146,12 +134,12 @@ public class PrintAssistant {
             return result;
         } catch (Exception e) {
             LOGGER.error(e.getMessage(), e);
-            throw new JokoPrintException(PRINTER_ERROR);
+            throw new JokoReportException(PRINTER_ERROR);
         }
     }
 
     public static void printAsPDF(CupsPrinter cupsPrinterService, String reportOutput, Boolean enableBlocks)
-            throws JokoPrintException {
+            throws JokoReportException {
         try {
 
             ByteArrayOutputStream output = JokoReporter.generatePDFFromHTML(reportOutput, enableBlocks);
@@ -178,7 +166,7 @@ public class PrintAssistant {
 
         } catch (Exception e) {
             LOGGER.error(e.getMessage(), e);
-            throw new JokoPrintException(PRINTER_ERROR);
+            throw new JokoReportException(PRINTER_ERROR);
         }
     }
 }

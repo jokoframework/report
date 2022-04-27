@@ -3,8 +3,10 @@ package io.github.jokoframework.report.printer;
 import java.nio.charset.StandardCharsets;
 
 /**
+ * @deprecated - use {@link ESCPrinter} instead
  * @author ncanatta
  */
+@Deprecated
 public class EscPUtil {
 
     public static final int MAX_PAGE_LENGTH = 127;

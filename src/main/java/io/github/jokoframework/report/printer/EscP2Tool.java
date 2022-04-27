@@ -6,9 +6,12 @@ import java.math.BigDecimal;
 import java.text.DecimalFormat;
 
 /**
+ * @deprecated - use {@link ESCPrinter} instead
  * @author ncanatta
  */
+@Deprecated
 public class EscP2Tool {
+    StringBuffer chainBuffer = new StringBuffer();
 
     public String addTab(int tab, Object param) {
         String tabs = StringUtils.repeat("\t", tab);
@@ -28,6 +31,27 @@ public class EscP2Tool {
 
     public String addLine(int line) {
         return StringUtils.repeat("\n", line);
+    }
+
+    public EscP2Tool chainTab(int tab, Object param) {
+        chainBuffer.append(addTab(tab, param));
+        return this;
+    }
+
+    public EscP2Tool chainSpace(int space, Object param) {
+        chainBuffer.append(addSpace(space, param));
+        return this;
+    }
+
+    public EscP2Tool chainTabAndSpace(int tab, int space, Object param) {
+        chainBuffer.append(addTabAndSpace(tab, space, param));
+        return this;
+    }
+
+    public String closeChain() {
+        String chainResult = chainBuffer.toString();
+        chainBuffer.setLength(0);
+        return chainResult;
     }
 
     public String escOnePerSixInchLineSpacing() {
