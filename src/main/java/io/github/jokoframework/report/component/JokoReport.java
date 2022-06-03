@@ -67,7 +67,7 @@ public class JokoReport {
 
     public void printAsPDF(CupsPrinter printer, String templatePath, Object params) throws JokoReportException {
         JokoReporter jokoReporter = JokoReporter.buildInstance(templatePath, params);
-        String reportOutput = jokoReporter.buildReportOutput(false);
+        String reportOutput = jokoReporter.getAsString();
         PrintAssistant.printAsPDF(printer, reportOutput, true);
     }
 
@@ -95,18 +95,18 @@ public class JokoReport {
 
     public void printOnMatrixPrinter(CupsPrinter printer, String templatePath, Object params) throws JokoReportException {
         JokoReporter jokoReporter = newJokoReporter(templatePath, params);
-        String reportOutput = jokoReporter.buildReportOutput(true);
+        byte[] reportOutput = jokoReporter.getBytes();
         PrintAssistant.printOnMatrixPrinter(printer, reportOutput);
     }
 
     public void printOnMatrixPrinter(CupsPrinter printer, JokoReporter jokoReporter) throws JokoReportException {
-        String reportOutput = jokoReporter.buildReportOutput(true);
+        byte[] reportOutput = jokoReporter.getBytes();
         PrintAssistant.printOnMatrixPrinter(printer, reportOutput);
     }
 
     public byte[] getPDFAsByte(String templatePath, Object params) throws IOException {
         JokoReporter jokoReporter = newJokoReporter(templatePath, params);
-        String reportOutput = jokoReporter.buildReportOutput(false);
+        String reportOutput = jokoReporter.getAsString();
         return jokoReporter.getAsByte(reportOutput);
     }
 

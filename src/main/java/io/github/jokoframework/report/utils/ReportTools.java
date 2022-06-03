@@ -25,7 +25,7 @@ public class ReportTools {
     public final NumberUtil number;
     public final DecimalFormat decimalFormat;
     public final NumbersToSpanishWords numbersToSpanishWords;
-    public final DateToWords dateToWords;
+    public final DateTools dateTool;
 
 
     public ReportTools() {
@@ -38,7 +38,7 @@ public class ReportTools {
         this.decimalFormat = new DecimalFormat();
         this.number = new NumberUtil(this.locale);
         this.numbersToSpanishWords = new NumbersToSpanishWords();//NOSONAR
-        this.dateToWords = new DateToWords();
+        this.dateTool = new DateTools();
     }
 
     public NumberTool numberTool() {
@@ -79,9 +79,5 @@ public class ReportTools {
 
     public NumbersToSpanishWords numbersToWords() {
         return numbersToSpanishWords;
-    }
-
-    public DateToWords dateToWords() {
-        return dateToWords;
     }
 }

@@ -39,7 +39,11 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.io.UnsupportedEncodingException;
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Base64;
+import java.util.List;
 
 /**
  * Class that enables printing to ESC/P and ESC/P2 dot matrix printers (e.g. Epson LQ-570, Epson LX-300) by writing directly to a stream using standard I/O
@@ -49,11 +53,16 @@ public class ESCPrinter {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ESCPrinter.class);
 
+    private boolean printNullAsEmpty = true;
     /* fields */
-    final String utf8 = StandardCharsets.UTF_8.name();
+    final Charset UTF_8 = StandardCharsets.UTF_8;
+    final Charset ISO_8859_1 = StandardCharsets.ISO_8859_1;
+    final Charset DEFAULT_CHARSET = ISO_8859_1;
     private boolean escp24pin; //boolean to indicate whether the printer is a 24 pin esc/p2 epson
     private ByteArrayOutputStream baos;
     private PrintStream pstream;
+
+    private List hexList;
     private static int MAX_ADVANCE_9PIN = 216; //for 24/48 pin esc/p2 printers this should be 180
     private static int MAX_ADVANCE_24PIN = 180;
     private static int MAX_UNITS = 127; //for vertical positioning range is between 0 - 255 (0 <= n <= 255) according to epson ref. but 255 gives weird errors at 1.5f, 127 as max (0 - 128) seems to be working
@@ -106,22 +115,27 @@ public class ESCPrinter {
      */
     public ESCPrinter(boolean escp24pin) {
         this.escp24pin = escp24pin;
-        this.initialize();
+        try {
+            this.initialize();
+        } catch (UnsupportedEncodingException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     /**
      * Retrieves the print stream result as string
+     *
      * @return
      */
     public String generate() {
-        this.pstream.print(END_REPORT_CHAR);
-        String result = this.getResult();
+        String result = this.getAsString();
         close();
         return result;
     }
 
     /**
      * Close the print stream
+     *
      * @return
      */
     public void close() {
@@ -135,17 +149,19 @@ public class ESCPrinter {
 
     /**
      * Initialize the printer with default arguments
+     *
      * @return
      */
-    public boolean initialize() {
+    public boolean initialize() throws UnsupportedEncodingException {
         //create stream objs
         baos = new ByteArrayOutputStream();
-        pstream = new PrintStream(baos);
+        hexList = new ArrayList();
+        pstream = new PrintStream(baos, true, DEFAULT_CHARSET.name());
 
         //reset default settings
-        pstream.print(START_REPORT_CHAR);
-        pstream.print(ESC);
-        pstream.print(INIT_PRINTER);
+//        print(START_REPORT_CHAR);
+        print(ESC);
+        print(INIT_PRINTER);
 
         //select 10-cpi character pitch by default
         select10CPI();
@@ -162,115 +178,117 @@ public class ESCPrinter {
 
     /**
      * Method for setting the international character set
+     *
      * @param charset
      * @param arg
      */
     public void selectCharacterSet(char charset, int arg) {
         //Select international character set
-        pstream.print(ESC);
-        pstream.print(PARENTHESIS_LEFT);
-        pstream.print(t);
-        pstream.print(NUMBER_3); //always 3
-        pstream.print(NUMBER_0); //always 0
-        pstream.print(NUMBER_1);
-        pstream.print(charset);
-        pstream.print((char) arg);
-
-        //Select Epson character set
-        pstream.print(ESC);
-        pstream.print(t);
-        pstream.print(NUMBER_1);
+        print(ESC);
+        print(PARENTHESIS_LEFT);
+        print(t);
+        print(NUMBER_3); //always 3
+        print(NUMBER_0); //always 0
+        print(NUMBER_1);
+        print(charset);
+        print((char) arg);
     }
 
     /**
      * Set the page length in inches
+     *
      * @param length
      * @return
      */
     public ESCPrinter setPageLengthInches(char length) {
-        pstream.print(ESC);
-        pstream.print(C);
-        pstream.print(length);
+        print(ESC);
+        print(C);
+        print(length);
         return this;
     }
 
     /**
      * Select 10 characters per inch (condensed mode available)
+     *
      * @return
      */
     public ESCPrinter select10CPI() {
-        pstream.print(ESC);
-        pstream.print(P);
+        print(ESC);
+        print(P);
         return this;
     }
 
     /**
      * Select 12 characters per inch
+     *
      * @return
      */
     public ESCPrinter select12CPI() {
-        pstream.print(ESC);
-        pstream.print(M);
+        print(ESC);
+        print(M);
         return this;
     }
 
     /**
      * Select 15 characters per inch
+     *
      * @return
      */
     public ESCPrinter select15CPI() {
-        pstream.print(ESC);
-        pstream.print(g);
+        print(ESC);
+        print(g);
         return this;
     }
 
     public ESCPrinter selectSixLinesPerInch() {
-        pstream.print(ESC);
-        pstream.print(SIX_LINES_PER_INCH);
+        print(ESC);
+        print(SIX_LINES_PER_INCH);
         return this;
     }
 
     public ESCPrinter selectEightLinesPerInch() {
-        pstream.print(ESC);
-        pstream.print(EIGHT_LINES_PER_INCH);
+        print(ESC);
+        print(EIGHT_LINES_PER_INCH);
         return this;
     }
 
     /**
      * Set the printing quality to draft
+     *
      * @return
      */
     public void selectDraftPrinting() {
-        pstream.print(ESC);
-        pstream.print(x);
-        pstream.print(ROMAN_DRAFT);
+        print(ESC);
+        print(x);
+        print(ROMAN_DRAFT);
     }
 
     /**
      * Set the printing quality to LQ
      */
     public void selectLQPrinting() {
-        pstream.print(ESC);
-        pstream.print(x);
-        pstream.print(SERIF_LQ);
+        print(ESC);
+        print(x);
+        print(SERIF_LQ);
     }
 
     /**
      * Set the printing font to Roman
      */
     public ESCPrinter selectRomanFont() {
-        pstream.print(ESC);
-        pstream.print(k);
-        pstream.print(ROMAN_DRAFT);
+        print(ESC);
+        print(k);
+        print(ROMAN_DRAFT);
         return this;
     }
+
     /**
      * Set the printing font to Serif
      */
     public ESCPrinter selectSerifFont() {
-        pstream.print(ESC);
-        pstream.print(k);
-        pstream.print(SERIF_LQ);
+        print(ESC);
+        print(k);
+        print(SERIF_LQ);
         return this;
     }
 
@@ -278,11 +296,11 @@ public class ESCPrinter {
      * Set character Size
      */
     public ESCPrinter setCharacterSize(int size) {
-        pstream.print(ESC);
-        pstream.print(X);
-        pstream.print(0);
-        pstream.print(size);
-        pstream.print(0);
+        print(ESC);
+        print(X);
+        print(0);
+        print(size);
+        print(0);
         return this;
     }
 
@@ -290,9 +308,9 @@ public class ESCPrinter {
      * Turn on/off double width
      */
     public ESCPrinter doubleWidth(boolean on) {
-        pstream.print(ESC);
-        pstream.print(DOUBLE_WIDTH);
-        pstream.print(on ? NUMBER_1 : NUMBER_0);
+        print(ESC);
+        print(DOUBLE_WIDTH);
+        print(on ? NUMBER_1 : NUMBER_0);
         return this;
     }
 
@@ -300,9 +318,9 @@ public class ESCPrinter {
      * Turn on/off double height
      */
     public ESCPrinter doubleHeight(boolean on) {
-        pstream.print(ESC);
-        pstream.print(DOUBLE_HEIGHT);
-        pstream.print(on ? NUMBER_1 : NUMBER_0);
+        print(ESC);
+        print(DOUBLE_HEIGHT);
+        print(on ? NUMBER_1 : NUMBER_0);
         return this;
     }
 
@@ -317,15 +335,15 @@ public class ESCPrinter {
      * Double the size of a given word wih the capability of making it bold
      */
     public ESCPrinter doubleSize(Object param, boolean bold) {
-        if(bold){
+        if (bold) {
             bold(true);
         }
         doubleWidth(true);
         doubleHeight(true);
-        pstream.print(param);
+        printParam(param);
         doubleWidth(false);
         doubleHeight(false);
-        if(bold){
+        if (bold) {
             bold(false);
         }
         return this;
@@ -335,8 +353,8 @@ public class ESCPrinter {
      * Turn on/of condensed mode
      */
     public ESCPrinter condensed(boolean on) {
-        pstream.print(ESC);
-        pstream.print(on ? (char) 15 : (char) 18);
+        print(ESC);
+        print(on ? (char) 15 : (char) 18);
         return this;
     }
 
@@ -344,11 +362,11 @@ public class ESCPrinter {
      * Turn on/of bold mode
      */
     public ESCPrinter bold(boolean bold) {
-        pstream.print(ESC);
-        if (bold){
-            pstream.print(E);
+        print(ESC);
+        if (bold) {
+            print(E);
         } else {
-            pstream.print(F);
+            print(F);
         }
         return this;
     }
@@ -357,8 +375,8 @@ public class ESCPrinter {
      * Performs new line
      */
     public void newLine() {
-        pstream.print(CR); //according to epson esc/p ref. manual always send carriage return before line feed
-        pstream.print(LINE_FEED);
+        print(CR); //according to epson esc/p ref. manual always send carriage return before line feed
+        print(LINE_FEED);
     }
 
     /**
@@ -374,24 +392,25 @@ public class ESCPrinter {
      * Ejects single sheet
      */
     public void formFeed() {
-        pstream.print(CR); //according to epson esc/p ref. manual it is recommended to send carriage return before form feed
-        pstream.print(FORM_FEED);
+        print(CR); //according to epson esc/p ref. manual it is recommended to send carriage return before form feed
+        print(FORM_FEED);
     }
 
     /**
      * Turn on/of proportional mode
      */
     public void proportionalMode(boolean proportional) {
-        pstream.print(ESC);
-        pstream.print(p);
+        print(ESC);
+        print(p);
         if (proportional)
-            pstream.print((char) 49);
+            print((char) 49);
         else
-            pstream.print((char) 48);
+            print((char) 48);
     }
 
     /**
      * Advance the horizontal print position to x centimeters from top
+     *
      * @param centimeters
      * @return
      */
@@ -406,9 +425,9 @@ public class ESCPrinter {
             else
                 n = (char) units; //want to move a distance which fits in range of parameter (0 - 255)
 
-            pstream.print(ESC);
-            pstream.print(J);
-            pstream.print(n);
+            print(ESC);
+            print(J);
+            print(n);
 
             units -= MAX_UNITS;
         }
@@ -416,6 +435,7 @@ public class ESCPrinter {
 
     /**
      * Advance the horizontal print position to x centimeters from left
+     *
      * @param centimeters
      * @return
      */
@@ -424,14 +444,15 @@ public class ESCPrinter {
         int unitsLow = (int) (inches * 120) % 256;
         int unitsHigh = (int) (inches * 120) / 256;
 
-        pstream.print(ESC);
-        pstream.print(BACKSLASH);
-        pstream.print((char) unitsLow);
-        pstream.print((char) unitsHigh);
+        print(ESC);
+        print(BACKSLASH);
+        print((char) unitsLow);
+        print((char) unitsHigh);
     }
 
     /**
      * Sets the horizontal print position to x centimeters from left margin
+     *
      * @param centimeters
      * @return
      */
@@ -440,15 +461,16 @@ public class ESCPrinter {
         int unitsLow = (int) (inches * 60) % 256;
         int unitsHigh = (int) (inches * 60) / 256;
 
-        pstream.print(ESC);
-        pstream.print($);
-        pstream.print((char) unitsLow);
-        pstream.print((char) unitsHigh);
+        print(ESC);
+        print($);
+        print((char) unitsLow);
+        print((char) unitsHigh);
         return this;
     }
 
     /**
      * Sets the horizontal print position to x centimeters from left margin
+     *
      * @param centimeters
      * @return
      */
@@ -459,19 +481,21 @@ public class ESCPrinter {
 
     /**
      * Sets the horizontal print position to x centimeters from left margin and next print a given object value
+     *
      * @param centimeters
      * @param param
      * @return
      */
     public ESCPrinter horizontalPositionCm(float centimeters, Object param) {
         setAbsoluteHorizontalPosition(centimeters);
-        pstream.print(param);
+        printParam(param);
         return this;
     }
 
     /**
      * Sets the horizontal print position to x centimeters from left margin with given spaces.
      * Next print a given object value
+     *
      * @param centimeters
      * @param spaces
      * @param param
@@ -480,100 +504,135 @@ public class ESCPrinter {
     public ESCPrinter horizontalPositionCm(float centimeters, int spaces, Object param) {
         setAbsoluteHorizontalPosition(centimeters);
         space(spaces);
-        pstream.print(param);
+        printParam(param);
         return this;
     }
 
     /**
      * performs horizontal tabs n number of times
+     *
      * @param tabs
      * @return
      */
     public ESCPrinter tab(int tabs) {
         for (int i = 0; i < tabs; i++) {
-            pstream.print(HTAB);
+            print(HTAB);
         }
         return this;
     }
 
     /**
      * performs horizontal tabs n number of times and print an object value
+     *
      * @param tabs
      * @param param
      * @return
      */
     public ESCPrinter tab(int tabs, Object param) {
         for (int i = 0; i < tabs; i++) {
-            pstream.print(HTAB);
+            print(HTAB);
         }
-        pstream.print(param);
+        printParam(param);
         return this;
     }
 
     /**
      * performs vertical tabs n number of times
+     *
      * @param tabs
      * @return
      */
     public ESCPrinter vtab(int tabs) {
         for (int i = 0; i < tabs; i++) {
-            pstream.print(VTAB);
+            print(VTAB);
         }
         return this;
     }
 
     /**
      * performs vertical tabs n number of times and print an object value
+     *
      * @param tabs
      * @param param
      * @return
      */
     public ESCPrinter vtab(int tabs, Object param) {
         for (int i = 0; i < tabs; i++) {
-            pstream.print(VTAB);
+            print(VTAB);
         }
-        pstream.print(param);
+        printParam(param);
         return this;
     }
 
     /**
      * Print a space char n number of times
+     *
      * @param spaces
      * @return
      */
     public ESCPrinter space(int spaces) {
         String finalSpaces = StringUtils.repeat(" ", spaces);
-        pstream.print(finalSpaces);
+        print(finalSpaces);
         return this;
     }
 
     /**
      * Print a space char n number of times and print an object value
+     *
      * @param spaces
      * @param param
      * @return
      */
     public ESCPrinter space(int spaces, Object param) {
         String finalSpaces = StringUtils.repeat(" ", spaces);
-        pstream.print(finalSpaces);
-        pstream.print(param);
+        print(finalSpaces);
+        printParam(param);
+        return this;
+    }
+
+    /**
+     * Print a point char n number of times
+     *
+     * @param points
+     * @return
+     */
+    public ESCPrinter point(int points) {
+        String finalPoints = StringUtils.repeat(".", points);
+        print(finalPoints);
         return this;
     }
 
     /**
      * Set left and right margins
-     * @param columnsLeft > 0 && <= 255
+     *
+     * @param columnsLeft  > 0 && <= 255
      * @param columnsRight > 0 && <= 255
      */
     public void setMargins(int columnsLeft, int columnsRight) {
-        pstream.print(ESC);
-        pstream.print(l);
-        pstream.print((char) columnsLeft);
+        print(ESC);
+        print(l);
+        print((char) columnsLeft);
 
         //right
-        pstream.print(ESC);
-        pstream.print(Q);
-        pstream.print((char) columnsRight);
+        print(ESC);
+        print(Q);
+        print((char) columnsRight);
+    }
+
+    public ESCPrinter print(Object param) {
+        pstream.print(param);
+        hexList.add(param);
+        return this;
+    }
+
+    public ESCPrinter printParam(Object param) {
+        if (param != null) {
+            print(param);
+        }
+        if (param == null && isPrintNullAsEmpty()) {
+            print("");
+        }
+        return this;
     }
 
     /**
@@ -583,7 +642,7 @@ public class ESCPrinter {
      * @return updated EscPUtil instance.
      */
     public ESCPrinter addText(String text) {
-        this.pstream.print(text);
+        this.print(text);
         return this;
     }
 
@@ -592,15 +651,35 @@ public class ESCPrinter {
      *
      * @return String with ESC/P commands
      */
-    public String getResult() {
-        try {
-            return baos.toString(utf8);
-        } catch (UnsupportedEncodingException e) {
-            LOGGER.error(e.getMessage(), e);
-        }
-        return "";
+    public String getAsString() {
+        return Base64.getEncoder().encodeToString(this.getAsBytes());
     }
 
+    public byte[] getAsBytes() {
+        return baos.toByteArray();
+    }
+
+    public List getHexList() {
+        return hexList;
+    }
+
+    public void encode(String[] a) {
+        try {
+            System.setOut(this.pstream);
+            for (char c = 128; c < 256; c++)
+                System.out.println("Got char = " + c);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    public boolean isPrintNullAsEmpty() {
+        return printNullAsEmpty;
+    }
+
+    public void setPrintNullAsEmpty(boolean printNullAsEmpty) {
+        this.printNullAsEmpty = printNullAsEmpty;
+    }
 
     public String toString() {
         StringBuilder stringBuilder = new StringBuilder();

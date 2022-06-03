@@ -10,7 +10,6 @@ import io.github.jokoframework.report.printer.ESCPrinter;
 import io.github.jokoframework.report.utils.ReportTools;
 import lombok.Getter;
 import lombok.Setter;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.velocity.Template;
 import org.apache.velocity.VelocityContext;
 import org.apache.velocity.app.VelocityEngine;
@@ -19,17 +18,22 @@ import org.apache.velocity.runtime.RuntimeConstants;
 import org.apache.velocity.runtime.resource.loader.ClasspathResourceLoader;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.ZoneId;
+import java.util.List;
 import java.util.Locale;
 
 @Getter
 @Setter
 public class JokoReporter {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(JokoReporter.class);
 
     public static final String TOOLS = "Tools";
     public static final String PARAMS = "Params";
@@ -40,6 +44,7 @@ public class JokoReporter {
     private Template template;
     private ReportTools reportTools;
     private ESCPrinter escPrinter;
+    private StringWriter writer;
     private boolean esc24pin = false;
     private static final String CONTEXT_NULL_ERROR = "context.null.error";
 
@@ -54,13 +59,13 @@ public class JokoReporter {
 
     public static JokoReporter buildInstance(String reportTemplatePath, boolean esc24pin, Object params) {
         JokoReporter jokoReporter = new JokoReporter(esc24pin);
-        jokoReporter.buildContext(reportTemplatePath, params);
+        jokoReporter.initializeContext(reportTemplatePath, params);
         return jokoReporter;
     }
 
     public static JokoReporter buildInstance(String reportTemplatePath, Object params) {
         JokoReporter jokoReporter = new JokoReporter();
-        jokoReporter.buildContext(reportTemplatePath, params);
+        jokoReporter.initializeContext(reportTemplatePath, params);
         return jokoReporter;
     }
 
@@ -75,17 +80,17 @@ public class JokoReporter {
     }
 
     public void setEscPrinter(ESCPrinter escPrinter) {
-        if(escPrinter != null){
+        if (escPrinter != null) {
             this.escPrinter = escPrinter;
         }
-        if(this.escPrinter != null && this.getContext() != null){
+        if (this.escPrinter != null && this.getContext() != null) {
             this.getContext().put(ESCP, this.escPrinter);
         }
 
     }
 
     public ESCPrinter getEscPrinter() {
-        if(this.escPrinter == null){
+        if (this.escPrinter == null) {
             this.setEscPrinter(new ESCPrinter(esc24pin));
         }
         return this.escPrinter;
@@ -97,7 +102,7 @@ public class JokoReporter {
      * @param reportTemplatePath
      * @param params
      */
-    public void buildContext(String reportTemplatePath, Object params) {
+    public void initializeContext(String reportTemplatePath, Object params) {
         // Initializing velocity engine
         VelocityEngine velocityEngine = new VelocityEngine();
         velocityEngine.setProperty(RuntimeConstants.RESOURCE_LOADER, "classpath");
@@ -129,7 +134,7 @@ public class JokoReporter {
         context.put(TOOLS, this.getReportTools());
     }
 
-    public StringWriter buildReport(int copyNumber) {
+    public StringWriter buildReport(int copyNumber) throws JokoReportException {
         this.getContext().put("copyNumber", copyNumber);
         return this.buildReport();
     }
@@ -139,9 +144,15 @@ public class JokoReporter {
      *
      * @return
      */
-    public StringWriter buildReport() {
-        StringWriter writer = new StringWriter();
-        this.getTemplate().merge(this.getContext(), writer);
+    public StringWriter buildReport() throws JokoReportException {
+        if (this.getContext() == null) {
+            throw new JokoReportException("context.null", "Context is null. Please initialize context first");
+        }
+        // If writer is not null report is already build
+        if(writer == null){
+            writer = new StringWriter();
+            this.getTemplate().merge(this.getContext(), writer);
+        }
         return writer;
     }
 
@@ -150,15 +161,50 @@ public class JokoReporter {
      *
      * @return
      */
-    public String buildReportOutput(boolean filerEscapeCommands) {
-        String reportOutput = this.getContext() != null ? this.buildReport().toString() : this.escPrinter.generate();
-        return filerEscapeCommands ?
-                StringUtils.substringBetween(reportOutput, ESCPrinter.START_REPORT_CHAR, ESCPrinter.END_REPORT_CHAR) :
-                reportOutput;
+    public String getAsString() {
+        return this.getAsString(1);
     }
 
-    public String buildReportOutput(int copyNumber) {
-        return this.buildReport(copyNumber).toString();
+    /**
+     * Retrieves the report output as String
+     * param copyNumber
+     * @return
+     */
+    public String getAsString(int copyNumber) {
+        String reportOutput = "";
+        try {
+            reportOutput = this.buildReport(copyNumber).toString();
+        } catch (JokoReportException e) {
+            LOGGER.error(e.getMessage(), e);
+        }
+        return reportOutput;
+    }
+
+
+    /**
+     * Retrieves the report output as bytes
+     * @return
+     */
+    public byte[] getBytes() {
+        try {
+            this.buildReport();
+        } catch (JokoReportException e) {
+            LOGGER.error(e.getMessage(), e);
+        }
+        return this.escPrinter.getAsBytes();
+    }
+
+    /**
+     * Retrieves the report output as list of Hex
+     * @return
+     */
+    public List<String> getHexList() {
+        try {
+            this.buildReport();
+        } catch (JokoReportException e) {
+            LOGGER.error(e.getMessage(), e);
+        }
+        return this.escPrinter.getHexList();
     }
 
     /**

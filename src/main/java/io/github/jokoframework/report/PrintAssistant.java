@@ -110,13 +110,13 @@ public class PrintAssistant {
         }
     }
 
-    public static PrintRequestResult printOnMatrixPrinter(CupsPrinter cupsPrinterService, String reportOutput) throws JokoReportException {
+    public static PrintRequestResult printOnMatrixPrinter(CupsPrinter cupsPrinterService, byte[] reportOutput) throws JokoReportException {
         try {
             List<String> listMimeTypes = new ArrayList<>();
             listMimeTypes.add("application/octet-stream");
             cupsPrinterService.setMimeTypesSupported(listMimeTypes);
             ByteArrayInputStream inputStream = new
-                    ByteArrayInputStream(reportOutput.getBytes());
+                    ByteArrayInputStream(reportOutput);
 
             Map<String, String> attributes = new HashMap<>();
             attributes.put("compression", "none");
