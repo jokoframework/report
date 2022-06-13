@@ -38,70 +38,35 @@ public class DateTools {
         return "";
     }
 
-    public String formatDateAsWords(Date dateToFormat, String format) {
+    public String formatDateAsWords(Object dateToFormat, String format) {
         return formatDateAsWords(dateToFormat, format, null, null);
     }
 
-    public String formatDateAsWords(Date dateToFormat, String format, Locale locale) {
+    public String formatDateAsWords(Object dateToFormat, String format, Locale locale) {
         return formatDateAsWords(dateToFormat, format, null, locale);
     }
 
-    public String formatDateAsWords(Date dateToFormat, String format, String city) {
+    public String formatDateAsWords(Object dateToFormat, String format, String city) {
         return formatDateAsWords(dateToFormat, format, city, null);
     }
 
-    public String formatDateAsWords(Date dateToFormat, String format, String city, Locale locale) {
-        if (dateToFormat == null) {
-            return "";
+
+    public String formatDateAsWords(Object dateToFormat, String format, String city, Locale locale) {
+        if(dateToFormat instanceof LocalDateTime){
+            LocalDate localDate = ((LocalDateTime) dateToFormat).toLocalDate();
+            return formatAsWords(localDate, format, city, configLocale(locale));
         }
-        LocalDate localDate = dateToFormat.toInstant()
-                .atZone(ZoneId.systemDefault())
-                .toLocalDate();
-
-        return formatAsWords(localDate, format, city, configLocale(locale));
-    }
-
-    public String formatDateAsWords(LocalDate dateToFormat, String format) {
-        return formatDateAsWords(dateToFormat, format, null, null);
-    }
-
-    public String formatDateAsWords(LocalDate dateToFormat, String format, Locale locale) {
-        return formatDateAsWords(dateToFormat, format, null, locale);
-    }
-
-    public String formatDateAsWords(LocalDate dateToFormat, String format, String city) {
-        return formatDateAsWords(dateToFormat, format, city, null);
-    }
-
-    public String formatDateAsWords(LocalDate dateToFormat, String format, String city, Locale locale) {
-        if (dateToFormat == null) {
-            return "";
+        if(dateToFormat instanceof LocalDate){
+            return formatAsWords((LocalDate) dateToFormat, format, city, configLocale(locale));
         }
-        return formatAsWords(dateToFormat, format, city, configLocale(locale));
-    }
-
-    public String formatDateAsWords(LocalDateTime dateToFormat, String format) {
-        return formatDateAsWords(dateToFormat, format, null, null);
-    }
-
-    public String formatDateAsWords(LocalDateTime dateToFormat, String format, Locale locale) {
-        return formatDateAsWords(dateToFormat, format, null, locale);
-    }
-
-    public String formatDateAsWords(LocalDateTime dateToFormat, String format, String city) {
-        return formatDateAsWords(dateToFormat, format, city, null);
-    }
-
-    public String formatDateAsWords(LocalDateTime dateToFormat, String format, String city, Locale locale) {
-        if (dateToFormat == null) {
-            return "";
+        if(dateToFormat instanceof Date){
+            LocalDate localDate = ((Date) dateToFormat).toInstant()
+                    .atZone(ZoneId.systemDefault())
+                    .toLocalDate();
+            return formatAsWords(localDate, format, city, configLocale(locale));
         }
-        LocalDate localDate = dateToFormat.toLocalDate();
-        return formatAsWords(localDate, format, city, configLocale(locale));
-    }
+        return "";
 
-    private Locale configLocale(Locale locale){
-        return locale == null ? new Locale("es", "ES") : locale;
     }
 
     private String formatAsWords(LocalDate localDate, String format, String city, Locale locale){
@@ -118,5 +83,11 @@ public class DateTools {
         }
         return MessageFormat.format(format, args);
     }
+
+    private Locale configLocale(Locale locale){
+        return locale == null ? new Locale("es", "ES") : locale;
+    }
+
+
 }
 

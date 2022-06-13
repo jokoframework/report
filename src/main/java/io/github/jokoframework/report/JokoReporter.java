@@ -171,13 +171,12 @@ public class JokoReporter {
      * @return
      */
     public String getAsString(int copyNumber) {
-        String reportOutput = "";
         try {
-            reportOutput = this.buildReport(copyNumber).toString();
+            this.buildReport();
         } catch (JokoReportException e) {
             LOGGER.error(e.getMessage(), e);
         }
-        return reportOutput;
+        return this.escPrinter.getAsString();
     }
 
 
@@ -198,13 +197,13 @@ public class JokoReporter {
      * Retrieves the report output as list of Hex
      * @return
      */
-    public List<String> getHexList() {
+    public List<String> getEncodedList() {
         try {
             this.buildReport();
         } catch (JokoReportException e) {
             LOGGER.error(e.getMessage(), e);
         }
-        return this.escPrinter.getHexList();
+        return this.escPrinter.getEncodedList();
     }
 
     /**

@@ -62,7 +62,7 @@ public class ESCPrinter {
     private ByteArrayOutputStream baos;
     private PrintStream pstream;
 
-    private List hexList;
+    private List encodedList;
     private static int MAX_ADVANCE_9PIN = 216; //for 24/48 pin esc/p2 printers this should be 180
     private static int MAX_ADVANCE_24PIN = 180;
     private static int MAX_UNITS = 127; //for vertical positioning range is between 0 - 255 (0 <= n <= 255) according to epson ref. but 255 gives weird errors at 1.5f, 127 as max (0 - 128) seems to be working
@@ -155,7 +155,7 @@ public class ESCPrinter {
     public boolean initialize() throws UnsupportedEncodingException {
         //create stream objs
         baos = new ByteArrayOutputStream();
-        hexList = new ArrayList();
+        encodedList = new ArrayList();
         pstream = new PrintStream(baos, true, DEFAULT_CHARSET.name());
 
         //reset default settings
@@ -621,7 +621,7 @@ public class ESCPrinter {
 
     public ESCPrinter print(Object param) {
         pstream.print(param);
-        hexList.add(param);
+        encodedList.add(String.valueOf(param));
         return this;
     }
 
@@ -659,8 +659,8 @@ public class ESCPrinter {
         return baos.toByteArray();
     }
 
-    public List getHexList() {
-        return hexList;
+    public List getEncodedList() {
+        return encodedList;
     }
 
     public void encode(String[] a) {
