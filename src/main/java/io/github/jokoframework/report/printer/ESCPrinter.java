@@ -361,9 +361,9 @@ public class ESCPrinter {
     /**
      * Turn on/of bold mode
      */
-    public ESCPrinter bold(boolean bold) {
+    public ESCPrinter bold(boolean on) {
         print(ESC);
-        if (bold) {
+        if (on) {
             print(E);
         } else {
             print(F);
@@ -399,10 +399,10 @@ public class ESCPrinter {
     /**
      * Turn on/of proportional mode
      */
-    public void proportionalMode(boolean proportional) {
+    public void proportional(boolean on) {
         print(ESC);
         print(p);
-        if (proportional)
+        if (on)
             print((char) 49);
         else
             print((char) 48);

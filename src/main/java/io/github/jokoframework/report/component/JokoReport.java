@@ -65,16 +65,6 @@ public class JokoReport {
         return PrintAssistant.findPrintService(name);
     }
 
-    public void printAsPDF(CupsPrinter printer, String templatePath, Object params) throws JokoReportException {
-        JokoReporter jokoReporter = JokoReporter.buildInstance(templatePath, params);
-        String reportOutput = jokoReporter.getAsString();
-        PrintAssistant.printAsPDF(printer, reportOutput, true);
-    }
-
-    public ESCPrinter newEscPrinter(boolean esc24pin) {
-        return new ESCPrinter(esc24pin);
-    }
-
     public JokoReporter newJokoReporter(String templatePath, Object params) {
         return JokoReporter.buildInstance(templatePath, params);
     }
@@ -93,21 +83,31 @@ public class JokoReport {
         return JokoReporter.buildInstance(false);
     }
 
+    public ESCPrinter newEscPrinter(boolean esc24pin) {
+        return new ESCPrinter(esc24pin);
+    }
+
     public void printOnMatrixPrinter(CupsPrinter printer, String templatePath, Object params) throws JokoReportException {
         JokoReporter jokoReporter = newJokoReporter(templatePath, params);
-        byte[] reportOutput = jokoReporter.getBytes();
+        byte[] reportOutput = jokoReporter.getEscBytes();
         PrintAssistant.printOnMatrixPrinter(printer, reportOutput);
     }
 
     public void printOnMatrixPrinter(CupsPrinter printer, JokoReporter jokoReporter) throws JokoReportException {
-        byte[] reportOutput = jokoReporter.getBytes();
+        byte[] reportOutput = jokoReporter.getEscBytes();
         PrintAssistant.printOnMatrixPrinter(printer, reportOutput);
+    }
+
+    public void printAsPDF(CupsPrinter printer, String templatePath, Object params) throws JokoReportException {
+        JokoReporter jokoReporter = JokoReporter.buildInstance(templatePath, params);
+        String reportOutput = jokoReporter.getAsString(false);
+        PrintAssistant.printAsPDF(printer, reportOutput, true);
     }
 
     public byte[] getPDFAsByte(String templatePath, Object params) throws IOException {
         JokoReporter jokoReporter = newJokoReporter(templatePath, params);
-        String reportOutput = jokoReporter.getAsString();
-        return jokoReporter.getAsByte(reportOutput);
+        String reportOutput = jokoReporter.getAsString(false);
+        return jokoReporter.getPDFAsByte(reportOutput);
     }
 
     public ResponseEntity<byte[]> getPDFAsResponseEntity(String templatePath, Object params, String fileName) throws IOException {

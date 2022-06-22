@@ -158,25 +158,16 @@ public class JokoReporter {
 
     /**
      * Retrieves the report output as String
-     *
-     * @return
-     */
-    public String getAsString() {
-        return this.getAsString(1);
-    }
-
-    /**
-     * Retrieves the report output as String
      * param copyNumber
      * @return
      */
-    public String getAsString(int copyNumber) {
+    public String getAsString(boolean escEnabled) {
         try {
             this.buildReport();
         } catch (JokoReportException e) {
             LOGGER.error(e.getMessage(), e);
         }
-        return this.escPrinter.getAsString();
+        return escEnabled ? this.escPrinter.getAsString() : this.writer.toString();
     }
 
 
@@ -184,7 +175,7 @@ public class JokoReporter {
      * Retrieves the report output as bytes
      * @return
      */
-    public byte[] getBytes() {
+    public byte[] getEscBytes() {
         try {
             this.buildReport();
         } catch (JokoReportException e) {
@@ -262,7 +253,7 @@ public class JokoReporter {
      *
      * @return
      */
-    public byte[] getAsByte(String html) throws IOException {
+    public byte[] getPDFAsByte(String html) throws IOException {
         return generatePDFFromHTML(html, true).toByteArray();
     }
 }
