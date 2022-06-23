@@ -1,13 +1,17 @@
-package io.github.jokoframework.report.utils;
+package io.github.jokoframework.report.tools;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 
 public class NumbersToSpanishWords {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(NumbersToSpanishWords.class);
+
+    private NumbersToSpanishWords() {
+    }
 
     /**
      * Converts a given number to words representation in spanish
@@ -17,7 +21,7 @@ public class NumbersToSpanishWords {
      */
     public static String numberToWords(String number) {
         StringBuilder result = new StringBuilder();
-        BigDecimal totalBigDecimal = new BigDecimal(number).setScale(2, BigDecimal.ROUND_DOWN);
+        BigDecimal totalBigDecimal = new BigDecimal(number).setScale(2, RoundingMode.DOWN);
         long parteEntera = totalBigDecimal.toBigInteger().longValue();
         int unidades = (int) (parteEntera % 1000);
         int miles = (int) ((parteEntera / 1000) % 1000);

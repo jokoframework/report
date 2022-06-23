@@ -3,20 +3,22 @@ package io.github.jokoframework.report;
 import com.gargoylesoftware.htmlunit.WebClient;
 import com.gargoylesoftware.htmlunit.WebRequest;
 import com.gargoylesoftware.htmlunit.html.HtmlPage;
-import com.itextpdf.html2pdf.HtmlConverter;
+import com.openhtmltopdf.pdfboxout.PdfRendererBuilder;
 import io.github.jokoframework.report.exception.JokoReportException;
 import io.github.jokoframework.report.exception.WebClientErrorListener;
 import io.github.jokoframework.report.printer.ESCPrinter;
-import io.github.jokoframework.report.utils.ReportTools;
+import io.github.jokoframework.report.tools.ReportTools;
 import lombok.Getter;
 import lombok.Setter;
 import org.apache.velocity.Template;
-import org.apache.velocity.VelocityContext;
 import org.apache.velocity.app.VelocityEngine;
 import org.apache.velocity.app.event.implement.IncludeRelativePath;
+import org.apache.velocity.context.Context;
 import org.apache.velocity.runtime.RuntimeConstants;
 import org.apache.velocity.runtime.resource.loader.ClasspathResourceLoader;
+import org.apache.velocity.tools.ToolManager;
 import org.jsoup.Jsoup;
+import org.jsoup.helper.W3CDom;
 import org.jsoup.nodes.Document;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,15 +34,14 @@ import java.util.Locale;
 @Getter
 @Setter
 public class JokoReporter {
-
     private static final Logger LOGGER = LoggerFactory.getLogger(JokoReporter.class);
-
+    public static final String VELOCITY_TOOLS_CONFIG_PATH = "/tools/velocity-tools.xml";
     public static final String TOOLS = "Tools";
     public static final String PARAMS = "Params";
     public static final String STRING = "String";
     public static final String ZONE_ID = "ZoneId";
     public static final String ESCP = "Escp";
-    private VelocityContext context;
+    private Context context;
     private Template template;
     private ReportTools reportTools;
     private ESCPrinter escPrinter;
@@ -113,25 +114,36 @@ public class JokoReporter {
         // Initializing template from path
         this.setTemplate(velocityEngine.getTemplate(reportTemplatePath));
 
-        // Configuring context
-        this.setContext(new VelocityContext());
-        this.setReportTools(new ReportTools());
+        // Configuring context with the standard velocity generic tools
+        ToolManager toolManager = new ToolManager(false, true);
+        toolManager.configure(VELOCITY_TOOLS_CONFIG_PATH);
+        toolManager.setVelocityEngine(velocityEngine);
+        this.setContext(toolManager.createContext());
 
+        // Configuring context with the custom joko report tools
+        this.setReportTools(new ReportTools());
         this.getContext().put(PARAMS, params);
         this.getContext().put(STRING, String.class);
         this.getContext().put(ZONE_ID, ZoneId.class);
-        this.getContext().put(TOOLS, this.getReportTools());
+        this.updateReportTools();
         this.setEscPrinter(new ESCPrinter(esc24pin));
     }
 
+    /**
+     * Updates the {@link ReportTools} instance in the velocity context
+     */
+    private void updateReportTools() {
+        this.getContext().put(TOOLS, this.getReportTools());
+    }
+
     public void configDecimalFormatter(String format) {
-        this.getReportTools().decimalFormat().applyPattern(format);
-        context.put(TOOLS, this.getReportTools());
+        this.getReportTools().decimalFormat.applyPattern(format);
+        this.updateReportTools();
     }
 
     public void configLocale(String language, String country) {
         this.getReportTools().setLocale(new Locale(language, country));
-        context.put(TOOLS, this.getReportTools());
+        this.updateReportTools();
     }
 
     public StringWriter buildReport(int copyNumber) throws JokoReportException {
@@ -149,7 +161,7 @@ public class JokoReporter {
             throw new JokoReportException("context.null", "Context is null. Please initialize context first");
         }
         // If writer is not null report is already build
-        if(writer == null){
+        if (writer == null) {
             writer = new StringWriter();
             this.getTemplate().merge(this.getContext(), writer);
         }
@@ -158,7 +170,8 @@ public class JokoReporter {
 
     /**
      * Retrieves the report output as String
-     * param copyNumber
+     * param escEnabled
+     *
      * @return
      */
     public String getAsString(boolean escEnabled) {
@@ -173,6 +186,7 @@ public class JokoReporter {
 
     /**
      * Retrieves the report output as bytes
+     *
      * @return
      */
     public byte[] getEscBytes() {
@@ -186,6 +200,7 @@ public class JokoReporter {
 
     /**
      * Retrieves the report output as list of Hex
+     *
      * @return
      */
     public List<String> getEncodedList() {
@@ -218,33 +233,30 @@ public class JokoReporter {
      *
      * @return
      */
-    public static ByteArrayOutputStream generatePDFFromHTML(String html, boolean enableBlocks) throws IOException {
-        ByteArrayOutputStream outputStream = new
-                ByteArrayOutputStream();
+    public static ByteArrayOutputStream generatePDFFromHTML(String html) throws IOException {
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        File file = createTmpFile(html);
+        WebRequest webRequest = new WebRequest(file.toURI().toURL());
+        webRequest.setCharset(StandardCharsets.UTF_8);
 
-        String content = html;
-        if (enableBlocks) {
-            File file = createTmpFile(html);
-            WebRequest webRequest = new WebRequest(file.toURI().toURL());
-            webRequest.setCharset(StandardCharsets.UTF_8);
+        try (WebClient webClient = new WebClient()) {
+            webClient.getOptions().setJavaScriptEnabled(true);
+            webClient.setJavaScriptErrorListener(new WebClientErrorListener());
 
-            try (WebClient webClient = new WebClient()) {
-                webClient.getOptions().setJavaScriptEnabled(true);
-                webClient.setJavaScriptErrorListener(new WebClientErrorListener());
-
-                HtmlPage page = webClient.getPage(webRequest);
-                Document doc = Jsoup.parse(page.asXml());
-
-                content = doc.html();
-            }
+            HtmlPage page = webClient.getPage(webRequest);
+            Document doc = Jsoup.parse(page.asXml());
+            outputStream = getPDFStream(new W3CDom().fromJsoup(doc), file.getAbsolutePath());
         }
+        return outputStream;
+    }
 
-        try {
-            HtmlConverter.convertToPdf(content, outputStream);
-        } catch (Exception e) {
-            throw new IOException(e);
-        }
-
+    private static ByteArrayOutputStream getPDFStream(org.w3c.dom.Document htmlDoc, String uri) throws IOException {
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        PdfRendererBuilder builder = new PdfRendererBuilder();
+        builder.useFastMode();
+        builder.withW3cDocument(htmlDoc, uri);
+        builder.toStream(outputStream);
+        builder.run();
         return outputStream;
     }
 
@@ -254,6 +266,6 @@ public class JokoReporter {
      * @return
      */
     public byte[] getPDFAsByte(String html) throws IOException {
-        return generatePDFFromHTML(html, true).toByteArray();
+        return generatePDFFromHTML(html).toByteArray();
     }
 }

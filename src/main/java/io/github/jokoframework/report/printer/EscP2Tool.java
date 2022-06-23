@@ -6,8 +6,8 @@ import java.math.BigDecimal;
 import java.text.DecimalFormat;
 
 /**
- * @deprecated - use {@link ESCPrinter} instead
  * @author ncanatta
+ * @deprecated - use {@link ESCPrinter} instead
  */
 @Deprecated
 public class EscP2Tool {

@@ -3,8 +3,8 @@ package io.github.jokoframework.report.printer;
 import java.nio.charset.StandardCharsets;
 
 /**
- * @deprecated - use {@link ESCPrinter} instead
  * @author ncanatta
+ * @deprecated - use {@link ESCPrinter} instead
  */
 @Deprecated
 public class EscPUtil {

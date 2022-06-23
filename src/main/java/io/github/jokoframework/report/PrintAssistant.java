@@ -1,5 +1,6 @@
 package io.github.jokoframework.report;
 
+import io.github.jokoframework.report.exception.ErrorMessages;
 import io.github.jokoframework.report.exception.JokoReportException;
 import org.cups4j.CupsClient;
 import org.cups4j.CupsPrinter;
@@ -18,7 +19,6 @@ import java.util.*;
 public class PrintAssistant {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(PrintAssistant.class);
-    private static final String PRINTER_ERROR = "printer.error";
 
     private PrintAssistant() {
         throw new IllegalStateException("Print Utility class. Not meant to be instantiated.");
@@ -60,25 +60,23 @@ public class PrintAssistant {
      * @param serverPort
      * @return
      */
-    public static CupsPrinter findPrinterByName(String printerName, String serverHost, int serverPort) {
-        try {
-            CupsPrinter cupsPrintService = null;
-            List<CupsPrinter> printers = findAllPrinterServices(serverHost, serverPort);
-            if (printers == null || printers.isEmpty()) {
-                throw new JokoReportException("Cant list Printers");
-            }
-            for (CupsPrinter cupsPrinter : printers) {
-                LOGGER.debug("Service: {}", cupsPrinter.getName());
-                if (cupsPrinter.getName().equalsIgnoreCase(printerName)) {
-                    cupsPrintService = cupsPrinter;
-                    break;
-                }
-            }
-            return cupsPrintService;
-        } catch (Exception ex) {
-            LOGGER.error(ex.getMessage(), ex);
-            return null;
+    public static CupsPrinter findPrinterByName(String printerName, String serverHost, int serverPort) throws JokoReportException {
+        CupsPrinter cupsPrintService = null;
+        List<CupsPrinter> printers = findAllPrinterServices(serverHost, serverPort);
+        if (printers == null || printers.isEmpty()) {
+            throw new JokoReportException(ErrorMessages.PRINTER_SERVICES_NOT_FOUND_ERROR);
         }
+        for (CupsPrinter cupsPrinter : printers) {
+            LOGGER.debug("Service: {}", cupsPrinter.getName());
+            if (cupsPrinter.getName().equalsIgnoreCase(printerName)) {
+                cupsPrintService = cupsPrinter;
+                break;
+            }
+        }
+        if (cupsPrintService == null) {
+            throw new JokoReportException(ErrorMessages.PRINTER_SERVICE_NOT_FOUND_ERROR, printerName);
+        }
+        return cupsPrintService;
     }
 
     /**
@@ -101,6 +99,7 @@ public class PrintAssistant {
 
     /**
      * Print details about the available printer services
+     *
      * @param service
      */
     public static void queryPrinter(PrintService service) {
@@ -134,15 +133,15 @@ public class PrintAssistant {
             return result;
         } catch (Exception e) {
             LOGGER.error(e.getMessage(), e);
-            throw new JokoReportException(PRINTER_ERROR);
+            throw new JokoReportException(ErrorMessages.PRINTER_ERROR);
         }
     }
 
-    public static void printAsPDF(CupsPrinter cupsPrinterService, String reportOutput, Boolean enableBlocks)
+    public static void printAsPDF(CupsPrinter cupsPrinterService, String reportOutput)
             throws JokoReportException {
         try {
 
-            ByteArrayOutputStream output = JokoReporter.generatePDFFromHTML(reportOutput, enableBlocks);
+            ByteArrayOutputStream output = JokoReporter.generatePDFFromHTML(reportOutput);
             List<String> listMimeTypes = new ArrayList<>();
             listMimeTypes.add("application/pdf");
             List<String> listResolution = new ArrayList<>();
@@ -166,7 +165,7 @@ public class PrintAssistant {
 
         } catch (Exception e) {
             LOGGER.error(e.getMessage(), e);
-            throw new JokoReportException(PRINTER_ERROR);
+            throw new JokoReportException(ErrorMessages.PRINTER_ERROR);
         }
     }
 }

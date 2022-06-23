@@ -72,7 +72,7 @@ A continuación ofrecemos un listado de los métodos principales con una descrip
 | **buildInstance**(String reportTemplatePath, Object params)     | Construye una instancia de **JokoReporter** e inicializa un contexto de Velocity. | **reportTemplatePath**: Url al archivo **.vm** de velocity que contiene el diseño del reporte<br/>Ej: '/reports/invoice.vm'<br/>**params**: Objeto con los parámetros que se pasará al conexto de Velociy con los valores a ser utilizados dentro del reporte | **io.github.jokoframework.report.JokoReporter** |
 | **initializeContext**(String reportTemplatePath, Object params) | Inicializa un contexto de Velocity.                                               | **reportTemplatePath**: Url al archivo **.vm** de velocity que contiene el diseño del reporte<br/>Ej: '/reports/invoice.vm'<br/>**params**: Objeto con los parámetros que se pasará al conexto de Velociy con los valores a ser utilizados dentro del reporte | **void**                                        |
 | **buildReport**()                                               | Procesa el archivo **.vm** generando el reporte correspondiene.                   | --                                                                                                                                                                                                                                                            | **java.io.StringWriter**                        |
-| **getAsString**()                                               | Retorna el reporte como String.                                                   | **escEnabled**: Cuando se trabaja con caracteres de escape ESC/P2 el valor debe ser **true**                                                                                                                                                                  | **java.lang.String**                            |
+| **getAsString**(boolean escEnabled)                             | Retorna el reporte como String.                                                   | **escEnabled**: Cuando se trabaja con caracteres de escape ESC/P2 el valor debe ser **true**                                                                                                                                                                  | **java.lang.String**                            |
 | [ESC/P2] **getEscBytes**()                                      | Retorna el reporte como byte array.                                               | --                                                                                                                                                                                                                                                            | **byte[]**                                      |
 | [ESC/P2] **getEncodedList**()                                   | Retorna el reporte como una lista con los caracteres codificados.                 | --                                                                                                                                                                                                                                                            | **java.util.List** of **java.lang.String**      |
 | **getPDFAsByte**()                                              | Genera un pdf a partir de un String html y lo convierte a byte array.             | **html**: Código html como String                                                                                                                                                                                                                             | **byte[]**                                      |
@@ -138,52 +138,119 @@ public class Reports {
 
 #### UTILITARIOS
 
-La librería provee una gama de utiliarios que se pueden acceder mediante la variable **$Tools**.
-La misma coniene los siguienes métodos:
+La librería provee una gama de utiliarios customizados que se pueden acceder mediante la variable **$Tools** en los reportes.
+La misma contiene los siguientes atributos:
 
-* **number**. Permite realizar formateo de números.
-* **stringUtils**. Proporciona una instancia de la clase **StringUtils** de Apache Commons.
-* **objectUtils**. Proporciona una instancia de la clase **ObjectUtils** de Apache Commons.
-* **dateTool**. Proporciona funciones para trabajar con fechas
-* **numbersToSpanishWords**. Permite converir números a su represenación en letras
+* **$Tools.number**. Permite realizar formateo de números.
+* **$Tools.date**. Proporciona funciones para trabajar con fechas
+* **$Tools.stringUtils**. Proporciona acceso a la clase **StringUtils** de Apache Commons.
+* **$Tools.objectUtils**. Proporciona acceso a la clase **ObjectUtils** de Apache Commons.
 
-Ej:
+Tambien se disponibilizan variables con acceso a las clases **java.lang.String** y **java.time.ZoneId** 
+en las siguiente variables:
+
+* **$String**
+* **$ZoneId**
+
+>Se disponibilizan ademas los utilitarios estandar de Velocity bajo las variables indicadas
+>en la documentación oficial:
+>[tools-summary](https://velocity.apache.org/tools/3.1/tools-summary.html)
+
+#### Ejemplos
+###### Formateando un número
 
 ```
-#set ($peopleList = $Params.peopleList)
-<table id="PeopleReportTable" class="table">
-    <thead>
-    <tr>
-        <th class="centered">Name</th>
-        <th class="centered">Lastname</th>
-        <th class="centered">Email</th>
-        <th class="centered">Gender</th>
-        <th class="centered">Salary</th>
-    </tr>
-    </thead>
-    <tbody>
-        #foreach( $people in $peopleList )
-            #set ($salary = $Tools.number().format('#,###.00', $people.salary))
-        <tr>
-            <td class="centered">
-                $people.name
-            </td>
-            <td class="centered">
-                $people.lastName
-            </td>
-            <td class="centered">
-                #nullSafe($people.email, "--")
-            </td>
-            <td class="align-right">
-                $people.gender
-            </td>
-            <td class="align-right">
-                $salary USD
-            </td>
-        </tr>
-        #end
-    </tbody>
-</table>
+ #set ($salary = $Tools.number.format('#,###.00', $people.salary))
+```
+
+###### Convirtiendo una fecha a letras
+
+```
+$Tools.date.formatAsWords($people.birthDate, '{1} {0}, {2}')
+```
+
+###### Manejando valores por defecto para nulos
+
+```
+$Tools.nullSafe($people.email, "--")
+```
+
+###### Ejemplo de Reporte completo
+```
+#set ($peopleList = $Params)
+<html id="PeopleReport">
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+    <style>
+        #include("report.css")
+    </style>
+</head>
+<body id="PeopleReportBody">
+<header class="table">
+    <h3 class="centered">LIST OF PEOPLE</h3>
+</header>
+<div class="centered">
+    <table id="PeopleReportTable" class="table">
+        <thead>
+            <tr>
+                <th class="centered">Name</th>
+                <th class="centered">Lastname</th>
+                <th class="centered">Email</th>
+                <th class="centered">Gender</th>
+                <th class="centered">Salary</th>
+                <th class="centered">Date of birth</th>
+            </tr>
+        </thead>
+        <tbody>
+            #foreach( $people in $peopleList )
+                #set ($salary = $Tools.number.format('#,###.00', $people.salary))
+            <tr>
+                <td class="centered">
+                    $people.name
+                </td>
+                <td class="centered">
+                    $people.lastName
+                </td>
+                <td class="centered">
+                    $Tools.nullSafe($people.email, "--")
+                </td>
+                <td class="align-right">
+                    $people.gender
+                </td>
+                <td class="align-right">
+                    $salary USD
+                </td>
+                <td class="align-right">
+                    $Tools.date.formatAsWords($people.birthDate, '{1} {0}, {2}')
+                </td>
+            </tr>
+            #end
+        </tbody>
+    </table>
+</div>
+</body>
+</html>
+```
+
+#### Configurando Localización .
+La clase JokoReporter ofrece un método para configurar la localización de los utilitarios denominado **configLocale**.
+La localización interna se maneja con un atributo de tipo **java.util.Locale** y afecta directamente a los utilitarios
+**$Tools.number** y **$Tools.date**.
+
+Ej:
+```
+JokoReporter jokoReporter = jokoReport.newJokoReporter(Templates.PEOPLE_REPORT_TEMPLATE, this.people);
+jokoReporter.configLocale("en", "US"); // Modifica la localización a inglés de Estados Unidos de los utilitarios $Tools.date y $Tools.number
+String reportOutput = jokoReporter.getAsString(false);
+```
+
+Se puede asi mismo modificar la localización de un utilitario específico utilizando los getters y setters:
+
+Ej:
+```
+JokoReporter jokoReporter = jokoReport.newJokoReporter(Templates.PEOPLE_REPORT_TEMPLATE, this.people);
+jokoReporter.getReportTools().getDate().setLocale(new Locale("en", "US")); // Modifica la localización del utilitario $Tools.date
+String reportOutput = jokoReporter.getAsString(false);
 ```
 
 ### CLASE EscPrinter.

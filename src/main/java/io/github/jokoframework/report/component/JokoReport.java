@@ -37,9 +37,10 @@ public class JokoReport {
      * Retrieves all printers from cups server using the <strong>cusps4j</strong> library.
      * Uses the properties <strong>joko.report.cups.server.url</strong> and <strong>joko.report.cups.server.port</strong>
      * to configure the server connection. Default is <strong>localhost:631</strong> respectively
+     *
      * @return
      */
-    public List<CupsPrinter> findAllPrintersFromServer(){
+    public List<CupsPrinter> findAllPrintersFromServer() {
         LOGGER.debug("Retrieving all printers from: {}:{}", cupsServerUrl, cupsServerPort);
         return PrintAssistant.findAllPrinterServices(cupsServerUrl, cupsServerPort);
     }
@@ -48,9 +49,10 @@ public class JokoReport {
      * Retrieves a printer by name from cups server using the <strong>cusps4j</strong> library.
      * Uses the properties <strong>joko.report.cups.server.url</strong> and <strong>joko.report.cups.server.port</strong>
      * to configure the server connection. Default is <strong>localhost:631</strong> respectively
+     *
      * @return
      */
-    public CupsPrinter findPrinterByNameFromServer(String name){
+    public CupsPrinter findPrinterByNameFromServer(String name) throws JokoReportException {
         LOGGER.debug("Retrieving printer {} from: {}:{}", name, cupsServerUrl, cupsServerPort);
         return PrintAssistant.findPrinterByName(name, cupsServerUrl, cupsServerPort);
     }
@@ -58,9 +60,10 @@ public class JokoReport {
     /**
      * Retrieves a printer by name from the operative system service using the java
      * <strong>java.awt.print.PrinterJob.lookupPrintServices()</strong> method.
+     *
      * @return
      */
-    public PrintService findPrinterByNameFromOS(String name){
+    public PrintService findPrinterByNameFromOS(String name) {
         LOGGER.debug("Retrieving printer {} from OS", name);
         return PrintAssistant.findPrintService(name);
     }
@@ -101,7 +104,7 @@ public class JokoReport {
     public void printAsPDF(CupsPrinter printer, String templatePath, Object params) throws JokoReportException {
         JokoReporter jokoReporter = JokoReporter.buildInstance(templatePath, params);
         String reportOutput = jokoReporter.getAsString(false);
-        PrintAssistant.printAsPDF(printer, reportOutput, true);
+        PrintAssistant.printAsPDF(printer, reportOutput);
     }
 
     public byte[] getPDFAsByte(String templatePath, Object params) throws IOException {
