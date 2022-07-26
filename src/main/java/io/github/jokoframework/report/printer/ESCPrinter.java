@@ -53,24 +53,16 @@ public class ESCPrinter {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ESCPrinter.class);
 
-    private boolean printNullAsEmpty = true;
-    /* fields */
+    /* Constants */
     final Charset UTF_8 = StandardCharsets.UTF_8;
     final Charset ISO_8859_1 = StandardCharsets.ISO_8859_1;
     final Charset DEFAULT_CHARSET = ISO_8859_1;
-    private boolean escp24pin; //boolean to indicate whether the printer is a 24 pin esc/p2 epson
-    private ByteArrayOutputStream baos;
-    private PrintStream pstream;
-
-    private List encodedList;
     private static int MAX_ADVANCE_9PIN = 216; //for 24/48 pin esc/p2 printers this should be 180
     private static int MAX_ADVANCE_24PIN = 180;
     private static int MAX_UNITS = 127; //for vertical positioning range is between 0 - 255 (0 <= n <= 255) according to epson ref. but 255 gives weird errors at 1.5f, 127 as max (0 - 128) seems to be working
     private static final float CM_PER_INCH = 2.54f;
-    public static final String START_REPORT_CHAR = "EscReportStart[";
-    public static final String END_REPORT_CHAR = "]EscReportEnd";
 
-    /* decimal ascii values for epson ESC/P commands */
+    /* Decimal ASCII values for epson ESC/P commands */
     private static final char ESC = 27; //escape
     private static final char INIT_PRINTER = 64; //@ Initialize printer
     private static final char LINE_FEED = 10; //line feed/new line
@@ -109,6 +101,13 @@ public class ESCPrinter {
     /* International character sets */
     public static final char USA = NUMBER_0;
     public static final char LATIN_AMERICA = 29;
+
+    /* Fields */
+    private ByteArrayOutputStream baos;
+    private PrintStream pstream;
+    private List encodedList;
+    private boolean printNullAsEmpty = true; //boolean to activate automatic printing of null values as empty string
+    private boolean escp24pin; //boolean to indicate whether the printer is a 24 pin esc/p2 epson
 
     /**
      * Creates a new instance of ESCPrinter
@@ -159,7 +158,6 @@ public class ESCPrinter {
         pstream = new PrintStream(baos, true, DEFAULT_CHARSET.name());
 
         //reset default settings
-//        print(START_REPORT_CHAR);
         print(ESC);
         print(INIT_PRINTER);
 
@@ -195,15 +193,29 @@ public class ESCPrinter {
     }
 
     /**
-     * Set the page length in inches
+     * Set the page length in lines
      *
-     * @param length
+     * @param lines
      * @return
      */
-    public ESCPrinter setPageLengthInches(char length) {
+    public ESCPrinter setPageLengthLines(char lines) {
         print(ESC);
         print(C);
-        print(length);
+        print(lines);
+        return this;
+    }
+
+    /**
+     * Set the page length in inches
+     *
+     * @param inches
+     * @return
+     */
+    public ESCPrinter setPageLengthInches(int inches) {
+        print(ESC);
+        print(C);
+        print(NUMBER_0);
+        print((char) (inches));
         return this;
     }
 
@@ -335,17 +347,23 @@ public class ESCPrinter {
      * Double the size of a given word wih the capability of making it bold
      */
     public ESCPrinter doubleSize(Object param, boolean bold) {
-        if (bold) {
-            bold(true);
-        }
+        bold(true, bold); // Activate bold mode only if bold param is true
         doubleWidth(true);
         doubleHeight(true);
         printParam(param);
         doubleWidth(false);
         doubleHeight(false);
-        if (bold) {
-            bold(false);
-        }
+        bold(false, bold); // Deactivate bold mode only if bold param is true
+        return this;
+    }
+
+    /**
+     * Turn on/of proportional mode
+     */
+    public ESCPrinter proportional(boolean on) {
+        print(ESC);
+        print(p);
+        print(on ? (char) 49 : (char) 48);
         return this;
     }
 
@@ -359,15 +377,30 @@ public class ESCPrinter {
     }
 
     /**
+     * Turn on/of bold mode given a condition
+     */
+    public ESCPrinter bold(boolean on, boolean condition) {
+        if (condition) {
+            print(ESC);
+            print(on ? E : F);
+        }
+        return this;
+    }
+
+    /**
      * Turn on/of bold mode
      */
     public ESCPrinter bold(boolean on) {
-        print(ESC);
-        if (on) {
-            print(E);
-        } else {
-            print(F);
-        }
+        return bold(on, true);
+    }
+
+    /**
+     * Print a value in bold mode
+     */
+    public ESCPrinter bold(Object param) {
+        bold(true);
+        printParam(param);
+        bold(false);
         return this;
     }
 
@@ -396,16 +429,15 @@ public class ESCPrinter {
         print(FORM_FEED);
     }
 
-    /**
-     * Turn on/of proportional mode
-     */
-    public void proportional(boolean on) {
-        print(ESC);
-        print(p);
-        if (on)
-            print((char) 49);
-        else
-            print((char) 48);
+
+    public char getMaxUnits(int units) {
+        char n;
+        if (units > MAX_UNITS) {
+            n = (char) MAX_UNITS; //want to move more than range of parameter allows (0 - 255) so move max amount
+        } else {
+            n = (char) units; //want to move a distance which fits in range of parameter (0 - 255)
+        }
+        return n;
     }
 
     /**
@@ -419,12 +451,7 @@ public class ESCPrinter {
         int units = (int) (inches * (escp24pin ? MAX_ADVANCE_24PIN : MAX_ADVANCE_9PIN));
 
         while (units > 0) {
-            char n;
-            if (units > MAX_UNITS)
-                n = (char) MAX_UNITS; //want to move more than range of parameter allows (0 - 255) so move max amount
-            else
-                n = (char) units; //want to move a distance which fits in range of parameter (0 - 255)
-
+            char n = getMaxUnits(units);
             print(ESC);
             print(J);
             print(n);
@@ -609,6 +636,7 @@ public class ESCPrinter {
      * @param columnsRight > 0 && <= 255
      */
     public void setMargins(int columnsLeft, int columnsRight) {
+        //left
         print(ESC);
         print(l);
         print((char) columnsLeft);
